@@ -31,7 +31,7 @@ public class Server implements Runnable{
                 int port = packet.getPort();
                 byte[] data = packet.getData();
                 logger.info("msg: " + packet.getLength() + ": " +new String(packet.getData(), 0, packet.getLength()));
-                String userInfo = String.format("[%s, %s]", inetAddress.getHostAddress(), port);
+                String userInfo = String.format("[%s: %s]", inetAddress.getHostAddress(), port);
                 usersInfo.add(userInfo);
 
                 String userInfoToSend = String.format("syncServer:%s", userInfo);
