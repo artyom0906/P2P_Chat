@@ -1,0 +1,23 @@
+plugins {
+    id 'java'
+}
+
+group 'com.artyom_and_zayac.p2p.network'
+version '0.1'
+
+repositories {
+    mavenCentral()
+}
+compileJava {
+    options.compilerArgs += ['--enable-preview']
+}
+tasks.withType(JavaCompile).all {
+    options.compilerArgs += ['--enable-preview']
+}
+tasks.withType(JavaExec) {
+    jvmArgs += '--enable-preview'
+}
+
+dependencies {
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+}
