@@ -1,126 +1,90 @@
 package com.artyom_and_zayac.p2p.client;
 
+import com.artyom_and_zayac.p2p.network.Network;
+import com.artyom_and_zayac.p2p.network.NetworkListener;
+import com.artyom_and_zayac.p2p.network.UserInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
+import java.io.ObjectInputStream;
 import java.net.*;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
 
-public class Client implements Runnable {
+public class Client implements NetworkListener {
     private static final Logger logger = LoggerFactory.getLogger(Client.class);
-    private DatagramSocket socket;
-    private InetAddress address;
-    private final Scanner scan = new Scanner(System.in);
+    private static UserInfo userInfo = null;
+    List<UserInfo> users = new ArrayList<>();
+    private static Thread listener = null;
 
-    public Client() {
-        logger.info("Running constructor");
-        try {
-            socket = new DatagramSocket();
-        } catch (SocketException e) {
-            logger.error(e.getMessage());
+    @Override
+    public void onReceive(byte[] data, Network network, InetAddress address, int port) {
+        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(data);
+        byte[] typeBuf = new byte[4];
+        byteArrayInputStream.read(typeBuf, 0, 4);
+        String type = new String(typeBuf);
+        logger.info(type);
+        if (type.equals("syn:")) {
+            try {
+                ObjectInputStream objectInputStream = new ObjectInputStream(byteArrayInputStream);
+                userInfo = (UserInfo) objectInputStream.readObject();
+
+                logger.info(userInfo.toString());
+
+                UserInfo info;
+                do {
+                    try {
+                        info = (UserInfo) objectInputStream.readObject();
+                        if (info == null) break;
+                        users.add(info);
+                    } catch (Exception e) {
+                        info = null;
+                    }
+                } while (info != null);
+                logger.info(users.toString());
+                Scanner scanner = new Scanner(System.in);
+                int id;
+                id = scanner.nextInt();
+                if(id != -1) {
+                    network.sendMessage("usr:hello", InetAddress.getLocalHost(), users.get(id).port());
+                    if(listener == null) {
+                        listener = new Thread(() -> {
+                            while (true) {
+                                String msg = scanner.nextLine();
+                                try {
+                                    network.sendMessage(msg, InetAddress.getLocalHost(), users.get(id).port());
+                                } catch (UnknownHostException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        });
+                        listener.start();
+                    }
+                }
+            } catch (Exception e) {
+                logger.error(e.getMessage(), e);
+            }
+
+        }else if (type.equals("usr:")){
+            logger.info("user");
+            logger.info(new String(byteArrayInputStream.readAllBytes()));
+            Scanner scanner = new Scanner(System.in);
+            if(listener == null) {
+                listener = new Thread(() -> {
+                    while (true) {
+                        String msg = scanner.nextLine();
+                        network.sendMessage(msg, address, port);
+                    }
+                });
+                listener.start();
+            }
         }
-        try {
-            address = InetAddress.getByName("213.200.50.96");
-        } catch (UnknownHostException e) {
-            logger.error(e.getMessage());
-        }
-
-        new Thread(this).start();
-
     }
 
     @Override
-    public void run() {
-        try {
-            DatagramPacket packet
-                    = new DatagramPacket("init".getBytes(), "init".getBytes().length,
-                    address, 7000);
-            logger.info("sending init message");
-            socket.send(packet);
-            logger.info("send init message");
+    public void onError(Exception e, Network network) {
 
-            byte[] buf = new byte[4096];
-            packet = new DatagramPacket(buf, buf.length);
-            socket.receive(packet);
-            logger.info("msg: " + packet.getLength() + ": " + new String(packet.getData(), 0, packet.getLength()));
-            socket.receive(packet);
-            String connections = new String(packet.getData(), 0, packet.getLength());
-            logger.info("msg: " + packet.getLength() + ": " + connections);
-            String[] connectionsArr = connections.substring(1).substring(1, connections.length() - 2).split(",");
-
-            List<Connection> connectionList = new ArrayList<>();
-            for (String connect : connectionsArr) {
-                logger.info(connect);
-                String[] ip_port = connect.replaceAll("[\\[\\]]", "").split(":");
-                logger.info(String.valueOf(Arrays.asList(ip_port)));
-                connectionList.add(new Connection(InetAddress.getByName(ip_port[0].strip()), Integer.parseInt(ip_port[1].strip())));
-            }
-            logger.info(String.format("select server:%s", connections));
-            int con_n = scan.nextInt();
-            if(con_n == -1){
-                packet = new DatagramPacket(buf, buf.length);
-                logger.info("wait for message");
-                socket.receive(packet);
-                startListenT(packet.getAddress(), packet.getPort());
-                logger.info(new String(packet.getData()));
-                while (true){
-                    String msg = scan.nextLine();
-                    packet = new DatagramPacket(msg.getBytes(),msg.getBytes().length,packet.getAddress(), packet.getPort());
-                    socket.send(packet);
-                }
-            }else {
-                logger.info("write a message:");
-                scan.nextLine();
-                String data = scan.nextLine();
-                packet = new DatagramPacket("data".getBytes(),"data".getBytes().length,  InetAddress.getByName("213.200.50.96"), connectionList.get(con_n).port);
-                socket.send(packet);
-            }
-
-        } catch (Exception e) {
-            logger.error(e.getMessage(), e);
-        }
-    }
-
-    private void startListenT(InetAddress address, int port) {
-        new Thread(()->{
-            try {
-                while (true) {
-                    byte[] buf = new byte[4096];
-                    DatagramPacket packet = new DatagramPacket(buf, buf.length);
-                    socket.receive(packet);
-                    logger.info(new String(packet.getData()));
-                }
-            }catch (Exception e){
-                logger.error("communication error", e);
-            }
-        }).start();
-    }
-
-    private static class Connection{
-        private InetAddress address;
-        private int port;
-        public Connection(InetAddress address, int port){
-            this.port = port;
-            this.address = address;
-        }
-
-        public InetAddress getAddress() {
-            return address;
-        }
-
-        public void setAddress(InetAddress address) {
-            this.address = address;
-        }
-
-        public int getPort() {
-            return port;
-        }
-
-        public void setPort(int port) {
-            this.port = port;
-        }
     }
 }

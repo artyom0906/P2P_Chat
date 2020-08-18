@@ -1,54 +1,60 @@
 package com.artyom_and_zayac.p2p.server;
 
+import com.artyom_and_zayac.p2p.network.Network;
+import com.artyom_and_zayac.p2p.network.NetworkListener;
+import com.artyom_and_zayac.p2p.network.UserInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.net.*;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
-public class Server implements Runnable{
+
+public class Server implements NetworkListener {
     private static final Logger logger = LoggerFactory.getLogger(Server.class);
-    private final DatagramSocket serverSocket;
-    private static final HashSet usersInfo = new HashSet();
-    public Server() throws IOException {
-        serverSocket = new DatagramSocket(7000);
-        new Thread(this).start();
-    }
-    @Override
-    public void run() {
-        while (true){
-            try {
-                byte[] buf = new byte[4096];
-                DatagramPacket packet = new DatagramPacket(buf, buf.length);
-                logger.info("wait for packet");
-                serverSocket.receive(packet);
-                logger.info("receive packet");
-                InetAddress inetAddress = packet.getAddress();
-                int port = packet.getPort();
-                byte[] data = packet.getData();
-                logger.info("msg: " + packet.getLength() + ": " +new String(packet.getData(), 0, packet.getLength()));
-                String userInfo = String.format("[%s: %s]", inetAddress.getHostAddress(), port);
-                usersInfo.add(userInfo);
-
-                String userInfoToSend = String.format("syncServer:%s", userInfo);
-                byte[] dataToSend = userInfoToSend.getBytes();
-                logger.info(new String(dataToSend));
-                packet = new DatagramPacket(dataToSend,dataToSend.length, inetAddress, port);
-                serverSocket.send(packet);
-
-                String usersInfoToSend = usersInfo.toString();
-                dataToSend = usersInfoToSend.getBytes();
-                packet = new DatagramPacket(dataToSend, dataToSend.length, inetAddress, port);
-                serverSocket.send(packet);
-
-
-            }catch (Exception e){
-                logger.error(e.getMessage(), e);
+    private static final Set<UserInfo> usersInfo = new HashSet<>();
+    public Server() throws UnknownHostException {
+        logger.info("starting listening");
+        new Thread(()->{
+            Scanner scanner = new Scanner(System.in);
+            for(;;){
+                if(scanner.nextLine().equalsIgnoreCase("clear")) usersInfo.clear();
             }
+        }).start();
+    }
+
+    @Override
+    public void onReceive(byte[] data, Network network, InetAddress address, int port) {
+        logger.info(new String(data));
+        try {
+            UserInfo info = new UserInfo(address, port);
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            byteArrayOutputStream.write("syn:".getBytes());
+            ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
+            objectOutputStream.writeObject(info);
+            usersInfo.stream().filter(userInfo -> !userInfo.equals(info))
+                    .limit(100).forEach(userInfo -> {
+                try {
+                    objectOutputStream.writeObject(userInfo);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
+            logger.info(String.valueOf(byteArrayOutputStream.toByteArray().length));
+            network.sendMessage(byteArrayOutputStream.toByteArray(), address, port);
+
+            usersInfo.add(info);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
+    }
+
+    @Override
+    public void onError(Exception e, Network network) {
+        logger.error(e.getMessage(), e);
     }
 }

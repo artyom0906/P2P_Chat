@@ -14,4 +14,11 @@ dependencies {
     compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
     compile group: 'ch.qos.logback', name:'logback-classic', version: '1.0.9'
     compile group: 'ch.qos.logback', name:'logback-core', version: '1.0.9'
+    compile group: 'com.artyom_and_zayac.p2p.network', name:'Network', version: '0.1'
+}
+compileJava {
+    options.compilerArgs += ['--enable-preview']
+}
+tasks.withType(JavaExec) {
+    jvmArgs += '--enable-preview'
 }

@@ -4,12 +4,24 @@
   <component name="GradleSettings">
     <option name="linkedExternalProjectsSettings">
       <GradleProjectSettings>
+        <compositeConfiguration>
+          <compositeBuild compositeDefinitionSource="SCRIPT">
+            <builds>
+              <build path="$PROJECT_DIR$/Network" name="Network">
+                <projects>
+                  <project path="$PROJECT_DIR$/Network" />
+                </projects>
+              </build>
+            </builds>
+          </compositeBuild>
+        </compositeConfiguration>
         <option name="distributionType" value="DEFAULT_WRAPPED" />
         <option name="externalProjectPath" value="$PROJECT_DIR$/Client" />
         <option name="gradleJvm" value="14" />
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$/Client" />
+            <option value="$PROJECT_DIR$/Network" />
           </set>
         </option>
       </GradleProjectSettings>
@@ -24,11 +36,23 @@
         </option>
       </GradleProjectSettings>
       <GradleProjectSettings>
+        <compositeConfiguration>
+          <compositeBuild compositeDefinitionSource="SCRIPT">
+            <builds>
+              <build path="$PROJECT_DIR$/Network" name="Network">
+                <projects>
+                  <project path="$PROJECT_DIR$/Network" />
+                </projects>
+              </build>
+            </builds>
+          </compositeBuild>
+        </compositeConfiguration>
         <option name="distributionType" value="DEFAULT_WRAPPED" />
         <option name="externalProjectPath" value="$PROJECT_DIR$/Server" />
         <option name="gradleJvm" value="14" />
         <option name="modules">
           <set>
+            <option value="$PROJECT_DIR$/Network" />
             <option value="$PROJECT_DIR$/Server" />
           </set>
         </option>
